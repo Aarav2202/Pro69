@@ -1,7 +1,12 @@
 import * as React from 'react'
-import {View, Text, StyleSheet, TouchableOpacity} from 'react-native' 
+import {View, Text, StyleSheet, TouchableOpacity, TextInput, Image, ImageBackground} from 'react-native' 
 import * as Permissions from 'expo-permissions'
 import {BarCodeScanner} from 'expo-barcode-scanner'
+import db from '../config'
+
+const bgImg = require('../assets/background2.png')
+const appIcon = require('../assets/appIcon.png')
+const appName = require('../assets/appName.png')
 
 export default class TransactionScreen extends React.Component{
     constructor(props){
@@ -10,7 +15,8 @@ export default class TransactionScreen extends React.Component{
             domState:'normal',
             hasCameraPermissions:null,
             scanned:false,
-            scannedData:''
+            bookId:'',
+            studentId:''
         }
     }
 
@@ -25,16 +31,46 @@ export default class TransactionScreen extends React.Component{
     }
 
     handleBarcodeScanned = async({type, data}) => {
-        this.setState({
-            scanned:true,
-            scannedData:data,
-            domState:'normal'
+        const {domState} = this.state
+        if(domState === 'bookId'){
+            this.setState({
+                scanned:true,
+                bookId:data,
+                domState:'normal'
+            })
+         }else{
+            this.setState({
+                scanned:true,
+                studentId:data,
+                domState:'normal'
+            })
+        }
+    }
+        
+    handleTransaction =()=> {
+        var {bookId}=this.state
+        db.collection('books').doc(book_ID).get().then(doc =>{
+            var book = doc.data()
+            if(book.is_book_available){
+                this.initiateBookIssue()
+            }else{
+                this.initiateBookReturn()
+            }
         })
     }
-    render(){
-        const {domState, hasCameraPermissions, scanned, scannedData} = this.state
     
-        if(domState === 'scanner'){
+    initiateBookIssue=()=>{
+        console.log('Book Issued To The Student')
+    }
+
+    initiateBookReturn=()=>{
+        console.log('Book Returned To The Library')
+    }
+
+    render(){
+        const {domState, hasCameraPermissions, scanned, bookId, studentId} = this.state
+    
+        if(domState !== 'normal'){
             return(
                 <BarCodeScanner
                     onBarCodeScanned = {scanned? undefined:this.handleBarcodeScanned}
@@ -44,19 +80,50 @@ export default class TransactionScreen extends React.Component{
         }
         return(
             <View style = {styles.container}>
-                <Text style = {styles.displayText}>
-                    {hasCameraPermissions?scannedData:'Request For Camera Permissions'}
-                </Text>
-                <TouchableOpacity 
-                    style = {styles.scanButton}
-                    onPress = {
-                        () => this.getCameraPermissions('scanner')
-                    }
-                >
-                    <Text style = {styles.buttonText}>
-                        scan QR-Code
-                    </Text>
-                </TouchableOpacity>
+                <ImageBackground style = {styles.bgImage} source = {bgImg}>
+                    <View style = {styles.upperContainer}>
+                        <Image  style = {styles.appIcon} source = {appIcon}/>
+                        <Image  style = {styles.appName} source = {appName}/>
+                    </View>
+                    <View style = {styles.lowerContainer}>
+                        <TextInput
+                            style = {style.textinput}
+                            placeholder={'bookId'}
+                            placeholderTextColor = 'grey'
+                            value = 'bookId'
+                        />
+                        <TouchableOpacity style = {styles.scanButton} onPress = {()=> {
+                            this.getCameraPermissions('bookId')
+                        }}>
+                            <Text style = {styles.scanbuttonText}>
+                                scan
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                    <View style = {[styles.lowerContainer, {marginTop:15}]}>
+                        <TextInput
+                            style = {style.textinput}
+                            placeholder={'studentId'}
+                            placeholderTextColor = 'grey'
+                            value = 'studentId'
+                        />
+                        <TouchableOpacity style = {styles.scanButton} onPress = {()=> {
+                            this.getCameraPermissions('studentId')
+                        }}>
+                            <Text style = {styles.scanbuttonText}>
+                                scan
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                    <View>
+                        <TouchableOpacity style = {styles.submitButton} 
+                                          onPress={()=>this.handleTransaction()}>
+                            <Text style = {styles.buttonText}>
+                                Submit
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </ImageBackground>
             </View>
         )
 
@@ -66,19 +133,78 @@ export default class TransactionScreen extends React.Component{
 const styles = StyleSheet.create({
     container: {
       flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center'
+      backgroundColor: "#FFFFFF"
     },
-    displayText:{
-      fontSize: 15,
-      textDecorationLine: 'underline'
+    bgImage: {
+      flex: 1,
+      resizeMode: "cover",
+      justifyContent: "center"
     },
-    scanButton:{
-      backgroundColor: '#2196F3',
+    upperContainer: {
+      flex: 0.5,
+      justifyContent: "center",
+      alignItems: "center"
+    },
+    appIcon: {
+      width: 200,
+      height: 200,
+      resizeMode: "contain",
+      marginTop: 80
+    },
+    appName: {
+      width: 80,
+      height: 80,
+      resizeMode: "contain"
+    },
+    lowerContainer: {
+      flex: 0.5,
+      alignItems: "center"
+    },
+    textinputContainer: {
+      borderWidth: 2,
+      borderRadius: 10,
+      flexDirection: "row",
+      backgroundColor: "#9DFD24",
+      borderColor: "#FFFFFF"
+    },
+    textinput: {
+      width: "57%",
+      height: 50,
       padding: 10,
-      margin: 10
+      borderColor: "#FFFFFF",
+      borderRadius: 10,
+      borderWidth: 3,
+      fontSize: 18,
+      backgroundColor: "#5653D4",
+      fontFamily: "Rajdhani_600SemiBold",
+      color: "#FFFFFF"
+    },
+    scanbutton: {
+      width: 100,
+      height: 50,
+      backgroundColor: "#9DFD24",
+      borderTopRightRadius: 10,
+      borderBottomRightRadius: 10,
+      justifyContent: "center",
+      alignItems: "center"
+    },
+    scanbuttonText: {
+      fontSize: 24,
+      color: "#0A0101",
+      fontFamily: "Rajdhani_600SemiBold"
+    },
+    submitButton:{
+        width:'50%',
+        height:50,
+        justifyContent:'center',
+        alignItems:'center',
+        backgroundColor:'blue',
+        borderRadius:15
     },
     buttonText:{
-      fontSize: 20,
+        fontSize:25,
+        color:'white',
+        fontFamily:'cursive'
     }
+    
   });
